@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { RunRecord, AppSettings } from '../../types';
 import { analyzeRecords, getChatFollowUp, getIntelligentReportAnalysis } from '../../services/geminiService';
 import ReactMarkdown from 'react-markdown';
+import { supabase } from '../../services/supabaseClient';
 
 interface PremiumProps {
   records: RunRecord[];
@@ -71,9 +72,35 @@ const Premium: React.FC<PremiumProps> = ({ records, settings, isPremium, setIsPr
     localStorage.setItem('ganhospro_chat_history', JSON.stringify(chatHistory));
   }, [analysis, chatHistory]);
 
-  const handleUpgrade = () => {
-    setIsPremium(true);
-    toast.success('Parabéns! Você agora é um usuário Premium.');
+  const handleUpgrade = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast.error('Você precisa estar logado para fazer o upgrade.');
+        return;
+      }
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('is_premium')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      if (profile?.is_premium) {
+        setIsPremium(true);
+        toast.success('Parabéns! Você agora é um usuário Premium.');
+      } else {
+        toast.error('Seu status premium não foi ativado. Tente novamente mais tarde ou entre em contato com o suporte.');
+      }
+    } catch (error: any) {
+      console.error('Erro ao verificar status premium:', error.message);
+      toast.error('Erro ao verificar status premium: ' + error.message);
+    }
   };
 
   const getPeriodKey = (dateStr: string, period: PeriodType): string => {

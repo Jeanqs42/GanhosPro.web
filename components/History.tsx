@@ -111,7 +111,7 @@ const History: React.FC<HistoryProps> = ({ records, deleteRecord, settings }) =>
     }
     setIsExportingPDF(true);
     try {
-      exportPDF(sortedRecords, settings, { locale: 'pt-BR', currency: 'BRL' });
+      await exportPDF(sortedRecords, settings, { locale: 'pt-BR', currency: 'BRL' });
       toast.success('Exportação para PDF iniciada!');
     } catch (e) {
       toast.error('Falha ao exportar PDF.');

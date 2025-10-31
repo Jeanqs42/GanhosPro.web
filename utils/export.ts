@@ -1,6 +1,9 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { RunRecord, AppSettings } from '../types';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { FileOpener } from '@capacitor-community/file-opener';
+import { Capacitor } from '@capacitor/core';
 
 export interface ExportOptions {
   separator?: string;
@@ -56,7 +59,7 @@ export function exportCSV(records: RunRecord[], settings: AppSettings, opts: Exp
   }, 100); 
 }
 
-export function exportPDF(records: RunRecord[], settings: AppSettings, opts: ExportOptions = {}) {
+export async function exportPDF(records: RunRecord[], settings: AppSettings, opts: ExportOptions = {}) {
   const { locale = 'pt-BR', currency = 'BRL', filenamePrefix = 'relatorio_ganhospro' } = opts;
   if (!records || records.length === 0) {
     throw new Error('Sem registros para exportar.');
@@ -119,5 +122,30 @@ export function exportPDF(records: RunRecord[], settings: AppSettings, opts: Exp
   }
 
   const filename = `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.pdf`;
-  doc.save(filename);
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const pdfOutput = doc.output('datauristring');
+      // Remove o prefixo "data:application/pdf;base64," para obter apenas a string base64
+      const base64Data = pdfOutput.split(', ')[1];
+
+      const result = await Filesystem.writeFile({
+        path: filename,
+        data: base64Data,
+        directory: Directory.Documents,
+        encoding: Encoding.UTF8,
+      });
+
+      await FileOpener.open({
+        filePath: result.uri,
+        contentType: 'application/pdf',
+        openWithDefault: true,
+      });
+    } catch (error) {
+      console.error('Erro ao exportar PDF no Capacitor:', error);
+      throw new Error('Falha ao exportar PDF para o dispositivo.');
+    }
+  } else {
+    doc.save(filename);
+  }
 }
